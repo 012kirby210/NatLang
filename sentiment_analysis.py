@@ -1,6 +1,7 @@
 import pandas as pd
 import nltk
 import unicodedata, string, re
+import matplotlib.pyplot as plt
 
 nltk.download("stopwords")
 nltk.download("punkt")
@@ -62,4 +63,44 @@ for index,text in enumerate(quotes_list):
 
 dataframe_tokens = pd.DataFrame(all_tokens_lists)
 
-print(dataframe_tokens)
+for entry in dataframe_tokens:
+    if str(dataframe_tokens[entry].dtype) in ("object", "string_", "unicode_"):
+        dataframe_tokens[entry].fillna(value="", inplace=True)
+
+dataframe_all_words = pd.DataFrame(tokens_list, columns=["token",
+                                    "stem",
+                                    "lemmatization",
+                                    "part_of_speech"])
+
+dataframe_all_words["counts"] = dataframe_all_words.groupby(["lemmatization"])["lemmatization"].transform("count")
+
+dataframe_all_words = dataframe_all_words.sort_values(by=["counts", "lemmatization"],
+                                ascending=[False,True]).reset_index()
+
+# only one occurence for one lemmatization
+dataframe_grouped = dataframe_all_words.groupby("lemmatization").first().sort_values(by="counts", ascending=False).reset_index()
+
+# One dataframe per part_of_speech types
+dataframe_grouped = dataframe_grouped[["lemmatization","part_of_speech", "counts"]]
+for part_of_speech_type in PART_OF_SPEECH_TYPES_KEYS:
+    dataframe_part_of_speech = dataframe_grouped[dataframe_grouped["part_of_speech"] == part_of_speech_type]
+    print(dataframe_part_of_speech.to_string())
+
+# plot word frequency
+flatten_tokens_list = [y for x in all_tokens_lists for y in x]
+
+token_frequency = nltk.FreqDist(flatten_tokens_list)
+del token_frequency[""]
+sorted_token_frequency = sorted(token_frequency.items(), 
+                                key=lambda x:x[1],
+                                reverse=True)
+token_frequency.plot(30, cumulative=False)
+
+# Removing the stopword then print graph
+lemmatized_words = dataframe_all_words["lemmatization"].tolist()
+lemmtatized_frequency = nltk.FreqDist(lemmatized_words)
+sorted( lemmtatized_frequency.items(), 
+       key= lambda x: x[:1],
+       reverse=True)
+
+lemmtatized_frequency.plot(30, cumulative=False)
